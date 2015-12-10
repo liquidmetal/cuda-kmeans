@@ -6,7 +6,7 @@ Here are the tasks we need to go through
 
 | Step | Task | Status |
 |---|----|----|
-| 1 | Write a program to generate data given the number of clusters, number of points and number of dimensions | |
+| 1 | Write a program to generate data given the number of clusters, number of points and number of dimensions | Done!|
 | 2 | Write the non-parallel 2D kmeans algorithm and verify it against OpenCV's code | |
 | 3 | Extend code to n dimensions | |
 | 4 | (practice) Get Cuda working | |
