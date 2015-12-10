@@ -1,0 +1,153 @@
+#include <iostream>
+#include <math.h>
+#include <random>
+
+using namespace std;
+
+class Point{
+
+public:
+    int dims = 0;
+    int *points;
+    int cluster_num = INT16_MAX;
+
+public:
+    int* getPoints(){
+        return points;
+    }
+
+    int getPoint(int index){
+        return points[index];
+    }
+
+    void setPoints(int *points){
+        this->points = points;
+    }
+
+    void setDim(int dims){
+        this->dims = dims;
+    }
+
+    int getClusterNum(){
+        return cluster_num;
+    }
+
+    void setClusterNum(int num){
+        cluster_num = num;
+    }
+
+};
+
+
+class NDimKMeans{
+
+private:
+    int dims = 0;
+    int K = 0;
+    int numPoints = 0;
+    Point *points;
+
+public:
+    NDimKMeans(int dims, int K, int numPoints ,Point *points){
+        this->dims = dims;
+        this->K = K;
+        this->numPoints = numPoints;
+        this->points = points;
+    }
+public:
+    int** getClusters(){
+
+        vector<vector<Point>> cluster;
+
+        Point* rand_p = new Point[numPoints];
+
+        for(int i=0; i<K; i++) {rand_p[i] = points[rand()%numPoints]; rand_p[i].setClusterNum(i);}
+
+
+        for(int k=0; k<dims; k++){
+
+            for(int i=0; i<numPoints; i++){
+
+                int* test_p = points[i].getPoints();
+                int min_index = 0;
+                int min = INT16_MAX;
+                double *dists = new double[K];
+
+                for(int j=0; j<K; j++){
+                    double dist = 0;
+                    for(int l=0; l<dims; l++) dist += pow(test_p[l] - rand_p[j].getPoints()[l],2);
+                    dist = sqrt(dist);
+                    dists[j] = dist;
+                }
+
+                for(int l=0; l<K; l++){
+                    for(int j=0; j<K; j++){
+                        if(dists[j]<min){ min = dists[j]; min_index = j; }
+                    }
+                    dists[min_index] = INT16_MAX;
+                    
+                }
+
+
+                points[i].setClusterNum(min_index);
+                points[i].setPoints(test_p);
+
+            }
+        }
+    }
+
+public:
+    int** getMeans(){
+
+    }
+};
+
+
+int main() {
+
+    int dims = 2;
+
+    Point** points = new Point *[3]();
+    Point* test_p = new Point[300];
+
+    for(int i=0; i<3; i++){
+        points[i] = new Point[100]();
+
+        for(int j=0; j<100; j++){
+            int *p = new int[dims];
+            for(int k=0; k<dims; k++){p[k] = random()%(int)pow(10,i+1);}
+            points[i][j].setPoints(p);
+            points[i][j].setDim(dims);
+
+            test_p[i].setPoints(p);
+            test_p[i].setDim(dims);
+        }
+    }
+
+    int **mean = new int*[3];
+
+    for(int i=0; i<3; i++){
+        mean[i] = new int[2];
+
+        for(int j=0; j<100; j++) {
+            mean[i][0] += points[i][j].getPoint(0);
+            mean[i][1] += points[i][j].getPoint(1);
+        }
+
+        mean[i][0]/=100;
+        mean[i][1]/=100;
+    }
+
+
+    NDimKMeans m(2, 3, 100, test_p);
+
+
+
+   for(int i=0; i<3; i++){
+       for(int j=0; j<100; j++){
+           cout << points[i][j].getPoint(1) << endl;
+       }
+   }
+
+    return 0;
+}
