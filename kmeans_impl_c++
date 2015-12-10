@@ -8,11 +8,11 @@ class Point{
 
 public:
     int dims = 0;
-    int *points;
+    double *points;
     int cluster_num = INT16_MAX;
 
 public:
-    int* getPoints(){
+    double* getPoints(){
         return points;
     }
 
@@ -20,10 +20,14 @@ public:
         return points[index];
     }
 
-    void setPoints(int *points){
+    void setPoints(double *points){
         this->points = points;
     }
-
+    
+    void setPoint (int index, double point) {
+         this->points[index] = point;
+    }
+    
     void setDim(int dims){
         this->dims = dims;
     }
@@ -39,7 +43,7 @@ public:
 };
 
 
-class NDimKMeans{
+class NDimKMeans {
 
 private:
     int dims = 0;
@@ -48,60 +52,90 @@ private:
     Point *points;
 
 public:
-    NDimKMeans(int dims, int K, int numPoints ,Point *points){
+    NDimKMeans(int dims, int K, int numPoints, Point *points) {
         this->dims = dims;
         this->K = K;
         this->numPoints = numPoints;
         this->points = points;
     }
+
 public:
-    int** getClusters(){
+    int **getClusters() {
 
-        vector<vector<Point>> cluster;
+        Point *mean_p = new Point[numPoints];
+        double **means = new double *[K];
+        for (int i = 0; i < K; i++) means[i] = new double[dims];
 
-        Point* rand_p = new Point[numPoints];
+        bool isFinished = false;
+        bool isFirst = true;
 
-        for(int i=0; i<K; i++) {rand_p[i] = points[rand()%numPoints]; rand_p[i].setClusterNum(i);}
+        for (int i = 0; i < K; i++) {
+            mean_p[i] = points[rand() % numPoints];
+            mean_p[i].setClusterNum(i);
+        }
 
+        while (!isFinished) {
+            for (int i = 0; i < numPoints; i++) {   //Go through All points
 
-        for(int k=0; k<dims; k++){
-
-            for(int i=0; i<numPoints; i++){
-
-                int* test_p = points[i].getPoints();
+                double *test_p = points[i].getPoints();
                 int min_index = 0;
                 int min = INT16_MAX;
-                double *dists = new double[K];
 
-                for(int j=0; j<K; j++){
+                for (int j = 0; j < K; j++) {
                     double dist = 0;
-                    for(int l=0; l<dims; l++) dist += pow(test_p[l] - rand_p[j].getPoints()[l],2);
+                    for (int l = 0; l < dims; l++) dist += pow(test_p[l] - mean_p[j].getPoints()[l], 2);
                     dist = sqrt(dist);
-                    dists[j] = dist;
-                }
-
-                for(int l=0; l<K; l++){
-                    for(int j=0; j<K; j++){
-                        if(dists[j]<min){ min = dists[j]; min_index = j; }
+                    if (dist < min) {
+                        min = dist;
+                        min_index = j;
                     }
-                    dists[min_index] = INT16_MAX;
-                    
+                }
+                points[i].setClusterNum(min_index);
+            }
+
+            int* d = new int[K];
+            int **means_temp = new int *[K];
+            for (int i = 0; i < K; i++) means_temp[i] = new int[dims];
+            
+            for (int j = 0; j < dims; j++) {
+                for (int l = 0; l < numPoints; l++) {
+                    means[points[l].getClusterNum()][j] += points[l].getPoint(j);
+                    d[points[l].getClusterNum()]++;
+                }
+                for(int l=0; l < K; l++)
+                    for(int k=0; k < dims; k++) {
+                        means_temp[l][k] /= d[l];
+                        mean_p[l].setPoint(k,means_temp[l][k] /= d[l]);
+                    }
+            }
+            
+            if (isFirst) {
+                int* d = new int[K];
+                for (int j = 0; j < dims; j++) {
+                    for (int l = 0; l < numPoints; l++) {
+                        means[points[l].getClusterNum()][j] += points[l].getPoint(j);
+                        d[points[l].getClusterNum()]++;
+                    }
+                    for(int l=0; l < K; l++)
+                        for(int k=0; k < dims; k++) {
+                            means[l][k] /= d[l];
+                            mean_p[l].setPoint(k,means_temp[l][k] /= d[l]);
+                        }
                 }
 
-
-                points[i].setClusterNum(min_index);
-                points[i].setPoints(test_p);
+                isFirst = false;
+            }else {
+                
+                for(int i=0; i<K; i++)
+                    for(int k=0; k<dims; k++)
+                        if(means[i][k] != means_temp[i][k]) isFinished = true;
+                
+                }
 
             }
+
         }
-    }
-
-public:
-    int** getMeans(){
-
-    }
 };
-
 
 int main() {
 
@@ -139,7 +173,7 @@ int main() {
     }
 
 
-    NDimKMeans m(2, 3, 100, test_p);
+    NDimKMeans m(2, 3, 300, test_p);
 
 
 
