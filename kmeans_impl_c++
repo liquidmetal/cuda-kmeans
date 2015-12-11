@@ -6,37 +6,45 @@ using namespace std;
 
 class Point{
 
+// TODO maybe this should be called "Cluster" instead of "Point"?
+class Point {
 public:
     int dims = 0;
     double *points;
     int cluster_num = INT16_MAX;
 
 public:
-    double* getPoints(){
+    // TODO we should have a constructor that takes in the number of dimensions and
+    // the number of points
+
+
+    double* getPoints() {
         return points;
     }
 
-    int getPoint(int index){
+    int getPoint(int index) {
+        // TODO how does this handle multiple dimensions?
         return points[index];
     }
 
-    void setPoints(double *points){
+    void setPoints(double *points) {
         this->points = points;
     }
     
     void setPoint (int index, double point) {
+        // TODO how does this handle multiple dimensions?
          this->points[index] = point;
     }
     
-    void setDim(int dims){
+    void setDim(int dims) {
         this->dims = dims;
     }
 
-    int getClusterNum(){
+    int getClusterNum() {
         return cluster_num;
     }
 
-    void setClusterNum(int num){
+    void setClusterNum(int num) {
         cluster_num = num;
     }
 
@@ -138,8 +146,9 @@ public:
 };
 
 int main() {
+    const int dims = 2;
 
-    int dims = 2;
+    // TODO should we have constants for no. of clusters and points/cluster too?
 
     Point** points = new Point *[3]();
     Point* test_p = new Point[300];
