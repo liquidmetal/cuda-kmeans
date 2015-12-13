@@ -1,196 +1,278 @@
-#include <iostream>
-#include <math.h>
-#include <random>
+//
+//  main.cpp
+//  K-Means
+//
+//  Created by Sathvik Birudavolu on 12/12/15.
+//  Copyright © 2015 Sathvik Birudavolu. All rights reserved.
+//
 
+#include <iostream>
+#include <random>
+#include <cmath>
+#include <iomanip>
+#include <opencv2/opencv.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/core/core.hpp>
+
+using namespace cv;
 using namespace std;
 
-class Point{
 
-// TODO maybe this should be called "Cluster" instead of "Point"?
-class Point {
+class Points{
+    
 public:
     int dims = 0;
-    double *points;
+private: double *points;
     int cluster_num = INT16_MAX;
-
+    
 public:
-    // TODO we should have a constructor that takes in the number of dimensions and
-    // the number of points
-
-
-    double* getPoints() {
+    
+    /* Point (int d){
+     points = new double[d];
+     *points = NULL;
+     }*/
+    double* getPoints(){
         return points;
     }
-
-    int getPoint(int index) {
-        // TODO how does this handle multiple dimensions?
+    
+    double getPoint(int index){
         return points[index];
     }
-
-    void setPoints(double *points) {
+    
+    void setPoints(double *points){
         this->points = points;
     }
     
     void setPoint (int index, double point) {
-        // TODO how does this handle multiple dimensions?
-         this->points[index] = point;
+        this->points[index] = point;
     }
     
-    void setDim(int dims) {
+    void setDim(int dims){
         this->dims = dims;
     }
-
-    int getClusterNum() {
+    
+    int getClusterNum(){
         return cluster_num;
     }
-
-    void setClusterNum(int num) {
+    
+    void setClusterNum(int num){
         cluster_num = num;
     }
-
+    /*Point (const Point &p){
+     points = new double[this->dims];
+     *points = *p.getPoints();
+     }*/
+    
 };
 
 
 class NDimKMeans {
-
+    
 private:
     int dims = 0;
     int K = 0;
     int numPoints = 0;
-    Point *points;
-
+    Points *points;
+    
 public:
-    NDimKMeans(int dims, int K, int numPoints, Point *points) {
+    NDimKMeans(int dims, int K, int numPoints, Points *points) {
         this->dims = dims;
         this->K = K;
         this->numPoints = numPoints;
         this->points = points;
     }
-
+    
 public:
-    int **getClusters() {
-
-        Point *mean_p = new Point[numPoints];
-        double **means = new double *[K];
-        for (int i = 0; i < K; i++) means[i] = new double[dims];
-
+    double** getClusters() {
+        
+        int count = 0;
+        Points *mean_p = new Points[K];
+        
         bool isFinished = false;
-        bool isFirst = true;
-
-        for (int i = 0; i < K; i++) {
-            mean_p[i] = points[rand() % numPoints];
-            mean_p[i].setClusterNum(i);
-        }
-
+        
+        
+        double **means = new double *[K];
+        for (int i = 0; i < K; i++) { means[i] = new double[dims]; }
+        
+        double **means_prev = new double *[K];
+        for (int i = 0; i < K; i++) means_prev[i] = new double[dims];
+        
+        mean_p[0].setPoints(new double[2]{100,110});
+        mean_p[0].setClusterNum(0);
+        mean_p[1].setPoints(new double[2]{250,200});
+        mean_p[1].setClusterNum(1);
+        mean_p[2].setPoints(new double[2]{400,400});
+        mean_p[2].setClusterNum(2);
+        
+    loop:
         while (!isFinished) {
+            
+            
             for (int i = 0; i < numPoints; i++) {   //Go through All points
-
+                
+                
                 double *test_p = points[i].getPoints();
+                
+                //cout <<i << " "<< test_p[0] << " " << test_p[1] << endl;
                 int min_index = 0;
-                int min = INT16_MAX;
-
+                double min = INT16_MAX;
+                
                 for (int j = 0; j < K; j++) {
+                    
                     double dist = 0;
-                    for (int l = 0; l < dims; l++) dist += pow(test_p[l] - mean_p[j].getPoints()[l], 2);
+                    for (int l = 0; l < dims; l++) { dist += pow(test_p[l] - mean_p[j].getPoint(l), 2); }
                     dist = sqrt(dist);
+                    //cout << numPoints << " "<< i << " " << j << " " << dist << endl;
+                    
+                    //cout << dist << " " << endl;
                     if (dist < min) {
                         min = dist;
+                        //cout << min << " ";
                         min_index = j;
                     }
                 }
+                cout << endl;
                 points[i].setClusterNum(min_index);
+                cout << test_p[0] <<"             " << test_p[1] << "    "<< points[i].getClusterNum() << endl;
             }
-
-            int* d = new int[K];
-            int **means_temp = new int *[K];
-            for (int i = 0; i < K; i++) means_temp[i] = new int[dims];
             
-            for (int j = 0; j < dims; j++) {
+            
+            
+            if(count%2 == 0){
+                
+                for(int i=0; i<K; i++)
+                    for(int j=0; j<dims; j++)
+                        means_prev[i][j] = 0;
+                
+                double *d = new double[K];
+                
                 for (int l = 0; l < numPoints; l++) {
-                    means[points[l].getClusterNum()][j] += points[l].getPoint(j);
-                    d[points[l].getClusterNum()]++;
-                }
-                for(int l=0; l < K; l++)
-                    for(int k=0; k < dims; k++) {
-                        means_temp[l][k] /= d[l];
-                        mean_p[l].setPoint(k,means_temp[l][k] /= d[l]);
+                    for (int j = 0; j < dims; j++){
+                        means_prev[points[l].getClusterNum()][j] += points[l].getPoint(j);
+                        
+                        if (j == 0)d[points[l].getClusterNum()]++;
                     }
-            }
+                }
+                
+                
+                for (int l = 0; l < K; l++)
+                    for (int k = 0; k < dims; k++) {
+                        means_prev[l][k] /= d[l];
+                        mean_p[l].setPoint(k, means_prev[l][k]);
+                        
+                    }
             
-            if (isFirst) {
-                int* d = new int[K];
+                
+            }else{
+                
+                for(int i=0; i<K; i++)
+                    for(int j=0; j<dims; j++)
+                        means[i][j] = 0;
+                
+                
+                double *d = new double[K];
                 for (int j = 0; j < dims; j++) {
                     for (int l = 0; l < numPoints; l++) {
                         means[points[l].getClusterNum()][j] += points[l].getPoint(j);
-                        d[points[l].getClusterNum()]++;
+                        if (j == 0) d[points[l].getClusterNum()]++;
                     }
-                    for(int l=0; l < K; l++)
-                        for(int k=0; k < dims; k++) {
-                            means[l][k] /= d[l];
-                            mean_p[l].setPoint(k,means_temp[l][k] /= d[l]);
-                        }
                 }
-
-                isFirst = false;
-            }else {
                 
-                for(int i=0; i<K; i++)
-                    for(int k=0; k<dims; k++)
-                        if(means[i][k] != means_temp[i][k]) isFinished = true;
+                for (int l = 0; l < K; l++)
+                    for (int k = 0; k < dims; k++) {
+                        means[l][k] /= d[l];
+                        mean_p[l].setPoint(k, means[l][k]);
+                    }
                 
-                }
-
+                int c = 0;
+                for (int i = 0; i < K; i++)
+                    for (int k = 0; k < dims; k++) {
+                        if (means[i][k] == means_prev[i][k]) { c++; }
+                    }
+                if (c == K * dims) break ;
             }
-
+            
+            count++;
         }
+        
+        
+        return means;
+        
+    }
 };
 
+
+void cvDisplayVectors(double** means, Points* points, int K ,int numPoints);
+
 int main() {
-    const int dims = 2;
-
-    // TODO should we have constants for no. of clusters and points/cluster too?
-
-    Point** points = new Point *[3]();
-    Point* test_p = new Point[300];
-
-    for(int i=0; i<3; i++){
-        points[i] = new Point[100]();
-
-        for(int j=0; j<100; j++){
-            int *p = new int[dims];
-            for(int k=0; k<dims; k++){p[k] = random()%(int)pow(10,i+1);}
-            points[i][j].setPoints(p);
-            points[i][j].setDim(dims);
-
-            test_p[i].setPoints(p);
-            test_p[i].setDim(dims);
+    
+    int dims = 2;
+    int K = 3;
+    int numPoints = 3;
+    
+    Points* points = new Points [numPoints];
+    for(int i=0; i<numPoints; i++)points[i].setDim(dims);
+    
+    // I got these points online i put in only 5 because it would be easier to track where my algorithm was going wrrong
+    // and the correct means for the points was A(0.7,1) and B(2.5 , 4.5) and i got the same answers with more precision
+   
+    points[0].setPoints(new double[2]{100,100});
+    points[1].setPoints(new double[2]{200,200});
+    points[2].setPoints(new double[2]{400,400});
+    //points[3].setPoints(new double[2]{2,4});
+    //points[4].setPoints(new double[2]{3,5});
+    
+    
+  /*  default_random_engine gen;
+    
+    for(int j=0 ; j< K; j++){
+        normal_distribution<> n_dist(200+200*j,20);
+        for(int i=0 ;i<numPoints/K; i++){
+            cout <<  "                      " << n_dist(gen) <<endl;
+            points[j*100+i].setPoints(new double[2]{abs(n_dist(gen)),abs(n_dist(gen))});
+            
         }
+    }*/
+    
+    
+    NDimKMeans m(dims, K, numPoints, points); // Each point in test_p has a cluster
+
+    double** means = m.getClusters();
+
+    for(int i=0; i < K; i++){
+        cout << means[i][0] << " "<< means[i][1] << " " <<endl;
     }
+    
+    cvDisplayVectors(means,points,K ,numPoints);
 
-    int **mean = new int*[3];
-
-    for(int i=0; i<3; i++){
-        mean[i] = new int[2];
-
-        for(int j=0; j<100; j++) {
-            mean[i][0] += points[i][j].getPoint(0);
-            mean[i][1] += points[i][j].getPoint(1);
-        }
-
-        mean[i][0]/=100;
-        mean[i][1]/=100;
-    }
-
-
-    NDimKMeans m(2, 3, 300, test_p);
-
-
-
-   for(int i=0; i<3; i++){
-       for(int j=0; j<100; j++){
-           cout << points[i][j].getPoint(1) << endl;
-       }
-   }
-
+    
     return 0;
+}
+
+void cvDisplayVectors(double** means, Points* points, int K, int numPoints){
+    
+    namedWindow("A", WINDOW_FULLSCREEN);
+    Mat img = imread("/Users/BSathvik/Downloads/White_Canvas.jpg", CV_LOAD_IMAGE_COLOR);
+    
+    Scalar mean_colors(0,0,0);
+    
+    Scalar *colors_clusters = new Scalar[K];
+    
+    for(int i=0; i<K; i++)
+        colors_clusters[i] = *new Scalar(rand()%255,rand()%255,rand()%255);
+    
+    
+    
+    for(int i=0 ; i<numPoints; i++){
+        circle(img, *new Point(points[i].getPoint(0),points[i].getPoint(1)), 3, colors_clusters[points[i].getClusterNum()] , 3);
+    }
+    
+    for(int i=0; i<K; i++){
+        circle(img, *new Point(means[i][0],means[i][1]), 4 , mean_colors,4);
+    }
+    
+    imshow("A", img);
+    
+    cvWaitKey(0);
+    
 }
