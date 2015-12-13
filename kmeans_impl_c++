@@ -101,7 +101,7 @@ public:
         mean_p[0].setClusterNum(0);
         mean_p[1].setPoints(new double[2]{250,200});
         mean_p[1].setClusterNum(1);
-        mean_p[2].setPoints(new double[2]{400,400});
+        mean_p[2].setPoints(new double[2]{300,300});
         mean_p[2].setClusterNum(2);
         
     loop:
@@ -208,7 +208,7 @@ int main() {
     
     int dims = 2;
     int K = 3;
-    int numPoints = 3;
+    int numPoints = 150;
     
     Points* points = new Points [numPoints];
     for(int i=0; i<numPoints; i++)points[i].setDim(dims);
@@ -216,23 +216,23 @@ int main() {
     // I got these points online i put in only 5 because it would be easier to track where my algorithm was going wrrong
     // and the correct means for the points was A(0.7,1) and B(2.5 , 4.5) and i got the same answers with more precision
    
-    points[0].setPoints(new double[2]{100,100});
-    points[1].setPoints(new double[2]{200,200});
-    points[2].setPoints(new double[2]{400,400});
+  //  points[0].setPoints(new double[2]{100,100});
+  //  points[1].setPoints(new double[2]{200,200});
+  //  points[2].setPoints(new double[2]{400,400});
     //points[3].setPoints(new double[2]{2,4});
     //points[4].setPoints(new double[2]{3,5});
     
     
-  /*  default_random_engine gen;
+    default_random_engine gen;
     
     for(int j=0 ; j< K; j++){
-        normal_distribution<> n_dist(200+200*j,20);
+        normal_distribution<> n_dist(100+100*j,20);
         for(int i=0 ;i<numPoints/K; i++){
             cout <<  "                      " << n_dist(gen) <<endl;
-            points[j*100+i].setPoints(new double[2]{abs(n_dist(gen)),abs(n_dist(gen))});
+            points[j*(numPoints/K)+i].setPoints(new double[2]{abs(n_dist(gen)),abs(n_dist(gen))});
             
         }
-    }*/
+    }
     
     
     NDimKMeans m(dims, K, numPoints, points); // Each point in test_p has a cluster
@@ -276,3 +276,4 @@ void cvDisplayVectors(double** means, Points* points, int K, int numPoints){
     cvWaitKey(0);
     
 }
+
