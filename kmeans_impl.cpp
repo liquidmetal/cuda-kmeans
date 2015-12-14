@@ -17,57 +17,64 @@
 using namespace cv;
 using namespace std;
 
+// Prototypes
+class Points;       // TODO Points needs to change to "Point"
+class NDimsKmeans;
+void cvDisplayVectors(double** means, Points* points, int K ,int numPoints);
+Points* build_uniform_random_point(int dims);
+Points* generate_clusters(int dims, int K, int point_count);
+
 
 class Points{
+private:
+    double *points = NULL;          // Actual point data
+    int cluster_num = INT16_MAX;    // The cluster this point belongs to
+    int dims = 0;                   // Number of dimensions
     
 public:
-    int dims = 0;
-private: double *points;
-    int cluster_num = INT16_MAX;
-    
-public:
-    
-    /* Point (int d){
-     points = new double[d];
-     *points = NULL;
-     }*/
-    double* getPoints(){
+    double* getPoints() {
         return points;
     }
     
-    double getPoint(int index){
+    double getPoint(int index) {
+        assert(index<dims);
+        assert(points);
         return points[index];
     }
     
-    void setPoints(double *points){
-        this->points = points;
+    void setPoints(double *points) {
+        if(!this->points) {
+            points = (double*)malloc(sizeof(double)*dims);
+        }
+        memcpy(this->points, points, sizeof(double)*dims);
     }
     
     void setPoint (int index, double point) {
+        assert(index<dims);
+        assert(points);
         this->points[index] = point;
     }
     
-    void setDim(int dims){
+    void setDim(int dims) {
+        assert(dims>0);
         this->dims = dims;
+
+        if(!this->points) {
+            points = (double*)malloc(sizeof(double)*dims);
+        }
     }
     
-    int getClusterNum(){
+    int getClusterNum() {
         return cluster_num;
     }
     
-    void setClusterNum(int num){
+    void setClusterNum(int num) {
         cluster_num = num;
     }
-    /*Point (const Point &p){
-     points = new double[this->dims];
-     *points = *p.getPoints();
-     }*/
-    
 };
 
 
 class NDimKMeans {
-    
 private:
     int dims = 0;
     int K = 0;
@@ -84,7 +91,6 @@ public:
     
 public:
     double** getClusters() {
-        
         int count = 0;
         Points *mean_p = new Points[K];
         
@@ -104,7 +110,7 @@ public:
         mean_p[2].setPoints(new double[2]{300,300});
         mean_p[2].setClusterNum(2);
         
-    loop:
+    //loop:
         while (!isFinished) {
             
             
@@ -201,17 +207,71 @@ public:
     }
 };
 
+// Returns a uniformly random vector of size dims
+Points* build_uniform_random_point(int dims) {
+    Points* vec = new Points();
+    vec->setDim(dims);
 
-void cvDisplayVectors(double** means, Points* points, int K ,int numPoints);
+    for(int i=0;i<dims;i++)
+        vec->setPoint(i, rand() % 100);
+
+    return vec;
+}
+
+// Function to generate point_count points with dims dimensions
+// Groups them into K clusters
+Points* generate_clusters(int dims, int K, int point_count) {
+    Points* points = new Points[point_count];
+
+    for(int i=0;i<point_count;i++)
+        points[i].setDim(dims);
+
+
+    const unsigned int num_per_cluster = point_count / K;
+    unsigned int count = 0;
+    unsigned int cluster_count = 0;
+
+    // The mean around which a cluster is generated
+    float std_dev = 20.0f;
+    Points* mean = build_uniform_random_point(dims);
+
+    default_random_engine gen;
+    for(int i=0;i<point_count;i++) {
+        for(int j=0;j<dims;j++) {
+            //points[i].setPoints(new double[2]{abs(n_dist(gen)),abs(n_dist(gen))});
+            normal_distribution<> n_dist(mean->getPoint(j), std_dev);
+            points[i].setPoint(j, n_dist(gen));
+            points[i].setClusterNum(current_cluster);
+        }
+
+        if(i%num_per_cluster == 0) {
+            // Build a new cluster
+            mean = build_uniform_random_point(dims);
+            current_cluster++;
+        }
+
+        count++;
+    }
+
+
+    /*for(int j=0;j<K;j++){
+        normal_distribution<> n_dist(100+100*j,20);
+        for(int i=0 ;i<numPoints/K; i++){
+            cout <<  "                      " << n_dist(gen) <<endl;
+            points[j*(numPoints/K)+i].setPoints(new double[2]{abs(n_dist(gen)),abs(n_dist(gen))});
+            count++;
+        }
+    }*/
+
+}
 
 int main() {
     
-    int dims = 2;
-    int K = 3;
-    int numPoints = 150;
-    
-    Points* points = new Points [numPoints];
-    for(int i=0; i<numPoints; i++)points[i].setDim(dims);
+    int dims = 2;           // 2D points
+    int K = 3;              // 3 clusters
+    int numPoints = 150;    // A total of 150 points
+
+    Points* points = generate_clusters(dims, K, numPoints);
     
     // I got these points online i put in only 5 because it would be easier to track where my algorithm was going wrrong
     // and the correct means for the points was A(0.7,1) and B(2.5 , 4.5) and i got the same answers with more precision
@@ -223,16 +283,7 @@ int main() {
     //points[4].setPoints(new double[2]{3,5});
     
     
-    default_random_engine gen;
-    
-    for(int j=0 ; j< K; j++){
-        normal_distribution<> n_dist(100+100*j,20);
-        for(int i=0 ;i<numPoints/K; i++){
-            cout <<  "                      " << n_dist(gen) <<endl;
-            points[j*(numPoints/K)+i].setPoints(new double[2]{abs(n_dist(gen)),abs(n_dist(gen))});
-            
-        }
-    }
+    printf("Got here\n");
     
     
     NDimKMeans m(dims, K, numPoints, points); // Each point in test_p has a cluster
