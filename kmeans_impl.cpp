@@ -101,6 +101,7 @@ public:
         
         
         for(int i=0; i<K; i++){
+            mean_v[i].setDim(dims);
             mean_v[i].setVectors(vectors[rand()%numVectors].getVectors());
             mean_v[i].setClusterNum(i);
         }
