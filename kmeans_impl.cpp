@@ -1,3 +1,4 @@
+
 //  main.cpp
 //  K-Means
 //  Created by Sathvik Birudavolu on 12/12/15.
@@ -191,6 +192,62 @@ public:
         return means;
         
     }
+    
+private:
+    Vector* randomKMeansPlusPlusInit (){
+        
+        Vector* v = new Vector[K];
+
+        int r = rand()%numVectors;
+        Vector rand_vec = vectors[r];
+
+        double sum_d_square = 0;
+        
+        for(int i=0; i<numVectors; i++)
+            for(int j=0; j<dims; j++)
+                sum_d_square += pow(vectors[i].getVector(j)-rand_vec.getVector(j), 2);
+          
+        
+
+        double* prob = new double[numVectors];
+        double* dist_ar = new double[numVectors];
+        
+        for(int k=0; k<K; k++){
+            for(int i=0; i<numVectors; i++){
+                double dist_square = 0;
+                
+                for(int j=0; j<dims; j++)
+                    dist_square += pow(vectors[i].getVector(j)-rand_vec.getVector(j), 2);
+                
+                
+                double min = dist_square;
+                if(i==0) dist_ar[i] = min;
+                if(i!=0 && dist_ar[i] > min) dist_ar[i] = min;
+                
+                prob[i] = dist_ar[i]/sum_d_square;
+            }
+            
+            double* prob_sort = new double [numVectors];
+            sort(prob, prob + numVectors);
+            
+            double* cumProb = new double[numVectors-1];
+            
+            for(int i=0; i< numVectors-1; i++){
+                if(i==0)cumProb[0] = prob_sort[0];
+                else cumProb[i] += cumProb[i-1]+prob_sort[i];
+            }
+            
+            double ra = (double)(rand()/(RAND_MAX));
+            int I = 0;
+            for(int i=0; i<numVectors-1; i++)
+                if(ra <= cumProb[i]!=1&&cumProb[i] ){
+                    I = i; break;
+                }
+            v[k] = vectors[I];
+        }
+        
+        return v;
+    }
 };
 
 // Returns a uniformly random vector of size dims
@@ -269,6 +326,8 @@ int main() {
     NDimKMeans kmeans(dims, K, numVectors, vectors); // Each point in test_p has a cluster
     
     double** means = kmeans.getClusters();
+    
+    
     
     for(int i=0; i < K; i++){
         cout << means[i][0] << " "<< means[i][1] << " " <<endl;
