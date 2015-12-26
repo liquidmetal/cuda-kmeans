@@ -102,7 +102,7 @@ public:
     }
     
 public:
-    double** getClusters() {
+    double** getClusters(bool use_kmeans_plus_plus=false) {
         int count = 0;
         Vector *mean_v = new Vector[K];
         
@@ -114,11 +114,14 @@ public:
         double **means_prev = new double *[K];
         for (int i = 0; i < K; i++) means_prev[i] = new double[dims];
         
-        
-        for(int i=0; i<K; i++){
-            mean_v[i].setDim(dims);
-            mean_v[i].setVectors(vectors[rand()%numVectors].getVectors());
-            mean_v[i].setClusterNum(i);
+        if(use_kmeans_plus_plus) {
+            mean_v = randomKMeansPlusPlusInit();
+        } else {
+            for(int i=0; i<K; i++){
+                mean_v[i].setDim(dims);
+                mean_v[i].setVectors(vectors[rand()%numVectors].getVectors());
+                mean_v[i].setClusterNum(i);
+            }
         }
         
         while (!isFinished) {
@@ -130,7 +133,10 @@ public:
                 
                 for (int j = 0; j < K; j++) {
                     double dist = 0;
-                    for (int l = 0; l < dims; l++) { dist += pow(test_p[l] - mean_v[j].getVector(l), 2); }
+                    for (int l = 0; l < dims; l++) {
+                        dist += pow(test_p[l] - mean_v[j].getVector(l), 2);
+                    }
+
                     dist = sqrt(dist);
 
                     if (dist < min) {
@@ -326,7 +332,7 @@ int main() {
     NDimKMeans kmeans(dims, K, num_vectors, vectors); // Each point in test_p has a cluster
    
     // TODO why does kmeans return double** and not vector*
-    double** means = kmeans.getClusters();
+    double** means = kmeans.getClusters(true);
     
     for(int i=0; i < K; i++){
         cout << means[i][0] << " "<< means[i][1] << " " <<endl;
