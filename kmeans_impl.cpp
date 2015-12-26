@@ -103,7 +103,6 @@ public:
     
 public:
     double** getClusters(bool use_kmeans_plus_plus=false) {
-        int count = 0;
         Vector *mean_v = new Vector[K];
         
         bool isFinished = false;
@@ -116,6 +115,11 @@ public:
         
         if(use_kmeans_plus_plus) {
             mean_v = randomKMeansPlusPlusInit();
+            printf("Starting positions returned by k++\n");
+            for(int i=0;i<K;i++) {
+                mean_v[i].print_vector();
+            }
+            printf("=======\n");
         } else {
             for(int i=0; i<K; i++){
                 mean_v[i].setDim(dims);
@@ -123,8 +127,10 @@ public:
                 mean_v[i].setClusterNum(i);
             }
         }
-        
+       
+        unsigned int num_iterations = 0; 
         while (!isFinished) {
+            num_iterations++;
             for (int i = 0; i < numVectors; i++) {   //Go through All points
                 double *test_p = vectors[i].getVectors();
                 
@@ -147,7 +153,7 @@ public:
                 vectors[i].setClusterNum(min_index);
             }
             
-            if(count%2==0){
+            if(num_iterations%2==0){
                 
                 for(int i=0; i<K; i++)
                     for(int j=0; j<dims; j++)
@@ -200,8 +206,12 @@ public:
                 if (c == K * dims) break ;
             }
             
-            count++;
+            num_iterations++;
+            if(num_iterations==100) {
+                break;
+            }
         }
+
         
         
         return means;
@@ -210,34 +220,42 @@ public:
     
 private:
     Vector* randomKMeansPlusPlusInit (){
-        
         Vector* v = new Vector[K];
-
-        int r = rand()%numVectors;
-        Vector rand_vec = vectors[r];
-
-        double sum_d_square = 0;
-        
-        for(int i=0; i<numVectors; i++)
-            for(int j=0; j<dims; j++)
-                sum_d_square += pow(vectors[i].getVector(j)-rand_vec.getVector(j), 2);
-          
-        
-
         double* prob = new double[numVectors];
         double* dist_ar = new double[numVectors];
+
+        uchar *used = new uchar[numVectors];
+        memset(used, 0, sizeof(bool) * numVectors);
         
-        for(int k=0; k<K; k++){
-            for(int i=0; i<numVectors; i++){
+        for(int k=0; k<K; k++) {
+
+            // Pick a random vector everytime we're trying to find a new mean
+            // Also, don't pick a vector we've already used
+            int r;
+            do {
+                r = ((double)rand()/RAND_MAX) * numVectors;
+            } while(used[r] != 0);
+            Vector rand_vec = vectors[r];
+
+            // Calculate the distance of all the vectors from this random vector
+            double sum_d_square = 0;
+            for(int i=0; i<numVectors; i++)
+                for(int j=0; j<dims; j++)
+                    sum_d_square += pow(vectors[i].getVector(j)-rand_vec.getVector(j), 2);
+
+
+            for(int i=0; i<numVectors; i++) {
                 double dist_square = 0;
                 
                 for(int j=0; j<dims; j++)
                     dist_square += pow(vectors[i].getVector(j)-rand_vec.getVector(j), 2);
                 
-                
                 double min = dist_square;
-                if(i==0) dist_ar[i] = min;
-                if(i!=0 && dist_ar[i] > min) dist_ar[i] = min;
+                if(i==0) 
+                    dist_ar[i] = min;
+
+                if(i!=0 && dist_ar[i] > min)
+                    dist_ar[i] = min;
                 
                 prob[i] = dist_ar[i]/sum_d_square;
             }
@@ -248,16 +266,21 @@ private:
             double* cumProb = new double[numVectors-1];
             
             for(int i=0; i< numVectors-1; i++){
-                if(i==0)cumProb[0] = prob_sort[0];
-                else cumProb[i] += cumProb[i-1]+prob_sort[i];
+                if(i==0)
+                    cumProb[0] = prob_sort[0];
+                else
+                    cumProb[i] += cumProb[i-1] + prob_sort[i];
             }
             
             double ra = (double)(rand()/(RAND_MAX));
             int I = 0;
-            for(int i=0; i<numVectors-1; i++)
-                if(ra <= cumProb[i]!=1&&cumProb[i] ){
-                    I = i; break;
+            for(int i=0; i<numVectors-1; i++) {
+                if(ra <= cumProb[i]!=1 && cumProb[i] && used[i]==0){
+                    I = i;
+                    used[i] = 1;
+                    break;
                 }
+            }
             v[k] = vectors[I];
         }
         
