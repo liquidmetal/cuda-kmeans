@@ -1,9 +1,8 @@
-
 //  main.cpp
 //  K-Means
 //  Created by Sathvik Birudavolu on 12/12/15.
 //  Copyright © 2015 Sathvik Birudavolu. All rights reserved.
-
+//
 #include <iostream>
 #include <random>
 #include <cmath>
@@ -18,12 +17,12 @@ using namespace std;
 // Prototypes
 class Vector;       //TODO change (count%2==0)
 class NDimsKmeans;
-void display_vectors(double** means, Vector* vectors, int K ,int numVectors);
+void cvDisplayVectors(double** means, Vector* vectors, int K ,int numVectors);
 Vector* build_uniform_random_point(int dims);
 Vector* generate_clusters(int dims, int K, int vector_count);
+void cvDisplayVectors(double** means, Vector* vectors, int K, int numVectors);
 
-
-class Vector {
+class Vector{
 private:
     double *vectors = NULL;          // Actual point data
     int cluster_num = INT16_MAX;     // The cluster this point belongs to
@@ -69,22 +68,8 @@ public:
     void setClusterNum(int num) {
         cluster_num = num;
     }
-
-    void print_vector() {
-        if(!this->vectors)
-            return;
-
-        for(int i=0;i<dims;i++) {
-            printf("%f ", vectors[i]);
-        }
-        printf("\n");
-    }
 };
 
-
-class GpuKmeans {
-    // TODO
-};
 
 class NDimKMeans {
 private:
@@ -102,7 +87,8 @@ public:
     }
     
 public:
-    double** getClusters(bool use_kmeans_plus_plus=false) {
+    double** getClusters() {
+        int count = 0;
         Vector *mean_v = new Vector[K];
         
         bool isFinished = false;
@@ -113,36 +99,26 @@ public:
         double **means_prev = new double *[K];
         for (int i = 0; i < K; i++) means_prev[i] = new double[dims];
         
-        if(use_kmeans_plus_plus) {
-            mean_v = randomKMeansPlusPlusInit();
-            printf("Starting positions returned by k++\n");
-            for(int i=0;i<K;i++) {
-                mean_v[i].print_vector();
-            }
-            printf("=======\n");
-        } else {
-            for(int i=0; i<K; i++){
-                mean_v[i].setDim(dims);
-                mean_v[i].setVectors(vectors[rand()%numVectors].getVectors());
-                mean_v[i].setClusterNum(i);
-            }
-        }
-       
-        unsigned int num_iterations = 0; 
+        mean_v = randomKMeansPlusPlusInit();
+        
+        cvDisplayInitial(mean_v, vectors);
+        
+        
         while (!isFinished) {
-            num_iterations++;
+            
+            
             for (int i = 0; i < numVectors; i++) {   //Go through All points
+                
+                
                 double *test_p = vectors[i].getVectors();
                 
                 int min_index = 0;
                 double min = INT16_MAX;
                 
                 for (int j = 0; j < K; j++) {
+                    
                     double dist = 0;
-                    for (int l = 0; l < dims; l++) {
-                        dist += pow(test_p[l] - mean_v[j].getVector(l), 2);
-                    }
-
+                    for (int l = 0; l < dims; l++) { dist += pow(test_p[l] - mean_v[j].getVector(l), 2); }
                     dist = sqrt(dist);
 
                     if (dist < min) {
@@ -153,7 +129,7 @@ public:
                 vectors[i].setClusterNum(min_index);
             }
             
-            if(num_iterations%2==0){
+            if(count%2==0){
                 
                 for(int i=0; i<K; i++)
                     for(int j=0; j<dims; j++)
@@ -206,12 +182,8 @@ public:
                 if (c == K * dims) break ;
             }
             
-            num_iterations++;
-            if(num_iterations==100) {
-                break;
-            }
+            count++;
         }
-
         
         
         return means;
@@ -220,82 +192,99 @@ public:
     
 private:
     Vector* randomKMeansPlusPlusInit (){
-        Vector* v = new Vector[K];
-        double* prob = new double[numVectors];
-        double* dist_ar = new double[numVectors];
-
-        uchar *used = new uchar[numVectors];
-        memset(used, 0, sizeof(bool) * numVectors);
         
-        for(int k=0; k<K; k++) {
-
-            // Pick a random vector everytime we're trying to find a new mean
-            // Also, don't pick a vector we've already used
-            int r;
-            do {
-                r = ((double)rand()/RAND_MAX) * numVectors;
-            } while(used[r] != 0);
-            Vector rand_vec = vectors[r];
-
-            // Calculate the distance of all the vectors from this random vector
-            double sum_d_square = 0;
-            for(int i=0; i<numVectors; i++)
-                for(int j=0; j<dims; j++)
-                    sum_d_square += pow(vectors[i].getVector(j)-rand_vec.getVector(j), 2);
-
-
-            for(int i=0; i<numVectors; i++) {
-                double dist_square = 0;
+        Vector* v = new Vector[K];
+        
+        int r = rand()%(numVectors-1);
+        v[0] = vectors[r];
+        
+        for(int k=1; k<K; k++){
+            double* prob = new double[numVectors];
+            
+            for(int i=0; i<numVectors; i++){
                 
-                for(int j=0; j<dims; j++)
-                    dist_square += pow(vectors[i].getVector(j)-rand_vec.getVector(j), 2);
-                
-                double min = dist_square;
-                if(i==0) 
-                    dist_ar[i] = min;
+                double min = *new double;
+                for(int j=0; j<k; j++){
 
-                if(i!=0 && dist_ar[i] > min)
-                    dist_ar[i] = min;
-                
-                prob[i] = dist_ar[i]/sum_d_square;
+                    double dist = *new double;
+                    dist = 0;
+                    for(int l=0; l<dims; l++) dist += pow(v[j].getVector(l)-vectors[i].getVector(l),2);
+                    
+                    if(j==0) memcpy(&min, &dist, sizeof(double));
+                    else if(j > 0 && dist <= min) memcpy(&min, &dist, sizeof(double));
+                }
+                prob[i] = *new double;
+                memcpy(&prob[i], &min, sizeof(double));
             }
             
-            double* prob_sort = new double [numVectors];
-            sort(prob, prob + numVectors);
+            int sum_dist_ar = 0;
+            for(int i=0; i<numVectors; i++) sum_dist_ar += prob[i];
             
-            double* cumProb = new double[numVectors-1];
+            for(int i=0; i<numVectors; i++) prob[i] /= sum_dist_ar;
             
-            for(int i=0; i< numVectors-1; i++){
-                if(i==0)
-                    cumProb[0] = prob_sort[0];
-                else
-                    cumProb[i] += cumProb[i-1] + prob_sort[i];
+            double* cumprob = new double[numVectors];
+            
+            for(int i=0; i<numVectors; i++){
+                double c_prob = 0;
+                for(int j=0; j<=i; j++)
+                    c_prob += prob[j];
+                
+                cumprob[i] = *new double;
+                memcpy(&cumprob[i], &c_prob, sizeof(double));
             }
             
-            double ra = (double)(rand()/(RAND_MAX));
-            int I = 0;
-            for(int i=0; i<numVectors-1; i++) {
-                if(ra <= cumProb[i]!=1 && cumProb[i] && used[i]==0){
-                    I = i;
-                    used[i] = 1;
+            cout << "trying" << cumprob[0] << endl;
+
+            double rand_prob = rand()/((double)RAND_MAX);
+            int index = 0;
+            
+            for(int  i=0; i<numVectors; i++){
+                if(rand_prob < cumprob[i]){
+                    index = i;
                     break;
                 }
             }
-            v[k] = vectors[I];
+            v[k] = vectors[index];
+        }
+        
+        for(int i=0; i< K; i++){
+            cout << "                      " << v[i].getVector(0) << "  " << v[i].getVector(1) << endl;
         }
         
         return v;
     }
+    
+public:
+    void cvDisplayInitial(Vector* random, Vector* vectors){
+        namedWindow("B", WINDOW_FULLSCREEN);
+        Mat img = imread("/Users/BSathvik/Downloads/White_Canvas.jpg", CV_LOAD_IMAGE_COLOR);
+        
+        Scalar mean_colors(0,0,0);
+        
+        Scalar *colors_clusters = new Scalar[K];
+        
+        for(int i=0; i<K; i++)
+            colors_clusters[i] = *new Scalar(rand()%255,rand()%255,rand()%255);
+        
+        for(int i=0 ; i<numVectors; i++)
+           // circle(img, *new Point(vectors[i].getVector(0),vectors[i].getVector(1)), 3, colors_clusters[vectors[i].getClusterNum()] , 3);
+        
+        for(int i=0; i<K; i++)
+            circle(img, *new Point(random[i].getVector(0), random[i].getVector(1)), 4 , mean_colors,4);
+        
+        imshow("B", img);
+        
+        cvWaitKey(0);
+    }
 };
 
-// Returns a uniformly random n-dimensional vector
+// Returns a uniformly random vector of size dims
 Vector* build_uniform_random_point(int dims) {
     Vector* vec = new Vector();
     vec->setDim(dims);
     
-    for(int i=0;i<dims;i++) {
-        vec->setVector(i, ((double)rand() / RAND_MAX) * 500);
-    }
+    for(int i=0;i<dims;i++)
+        vec->setVector(i, rand() % 500); //changed it from 100 to 600.. because clusters seemed too close to each other
     
     return vec;
 }
@@ -305,89 +294,101 @@ Vector* build_uniform_random_point(int dims) {
 Vector* generate_clusters(int dims, int K, int vector_count) {
     Vector* vectors = new Vector[vector_count];
     
-    for(int i=0;i<vector_count;i++) {
+    for(int i=0;i<vector_count;i++)
         vectors[i].setDim(dims);
-    }
     
-    // Ensure the number of vectors to generate is divisible by K 
-    assert(vector_count % K == 0);
+    
     const unsigned int num_per_cluster = vector_count / K;
+    unsigned int count = 0;
+    unsigned int cluster_count = 0;
     
     // The mean around which a cluster is generated
-    const float std_dev = ((double)rand() / RAND_MAX) * 30.0f;
+    float std_dev = 20.0f;
+    Vector* mean = build_uniform_random_point(dims);
 
-    // Generate K mean positions
-    Vector **means = (Vector**)malloc(sizeof(Vector*)*K);
-    for(int i=0;i<K;i++)
-        means[i] = build_uniform_random_point(dims);
     
     default_random_engine gen;
-    unsigned int current_cluster = -1;
     for(int i=0;i<vector_count;i++) {
-        // Build a new cluster
-        if(i % num_per_cluster == 0)
-            current_cluster++;
-
-        // Fetch the n-dimensional center for the current cluster
-        Vector* mean = means[current_cluster];
-
-        // Need to set the cluster's number only once
-        vectors[i].setClusterNum(current_cluster);
-
+        
         for(int j=0;j<dims;j++) {
+    
             normal_distribution<> n_dist(mean->getVector(j), std_dev);
             vectors[i].setVector(j, n_dist(gen));
+            vectors[i].setClusterNum(cluster_count);
         }
         
+        if(i%num_per_cluster == 0) {
+            // Build a new cluster
+            mean = build_uniform_random_point(dims);
+            cluster_count++;
+        }
+        
+        count++;
     }
     return vectors;
 }
 
+
+void cvDisplayVectors(double** means, Vector* vectors, int K, int numVectors){
+    
+    namedWindow("A", WINDOW_FULLSCREEN);
+    Mat img = imread("/Users/BSathvik/Downloads/White_Canvas.jpg", CV_LOAD_IMAGE_COLOR);
+    
+    Scalar mean_colors(0,0,0);
+    
+    Scalar *colors_clusters = new Scalar[K];
+    
+    for(int i=0; i<K; i++)
+        colors_clusters[i] = *new Scalar(rand()%255,rand()%255,rand()%255);
+    
+    for(int i=0 ; i<numVectors; i++)
+        circle(img, *new Point(vectors[i].getVector(0),vectors[i].getVector(1)), 3, colors_clusters[vectors[i].getClusterNum()] , 3);
+    
+    for(int i=0; i<K; i++)
+        circle(img, *new Point(means[i][0],means[i][1]), 4 , mean_colors,4);
+    
+    imshow("A", img);
+    
+    cvWaitKey(0);
+    
+}
+
 int main() {
+    
     int dims = 2;            // 2D points
     int K = 3;               // 3 clusters
-    int num_vectors = 150;    // A total of 150 points
-   
-    // Generate `num_vectors` vectors with `dims` dimensions. Also, divide `num_vectors`
-    // points into `K` clusters. 
-    Vector* vectors = generate_clusters(dims, K, num_vectors);
+    int numVectors = 150;    // A total of 150 points
     
-    NDimKMeans kmeans(dims, K, num_vectors, vectors); // Each point in test_p has a cluster
-   
-    // TODO why does kmeans return double** and not vector*
-    double** means = kmeans.getClusters(true);
+    Vector* vectors = generate_clusters(dims, K, numVectors);
+    
+    for(int i=0; i<numVectors; i++){
+        cout << vectors[i].getVector(0) << "     " << vectors[i].getVector(1) << endl;
+    }
+    
+    // I got these points online i put in only 5 because it would be easier to track where my algorithm was going wrong
+    // and the correct means for the points was A(0.7,1) and B(2.5 , 4.5)
+
+    //  points[0].setPoints(new double[2]{1,1});
+    //  points[1].setPoints(new double[2]{1,0});
+    //  points[2].setPoints(new double[2]{4,4});
+    //  points[3].setPoints(new double[2]{2,4});
+    //  points[4].setPoints(new double[2]{3,5});
+
+    printf("Got here\n");
+
+    NDimKMeans kmeans(dims, K, numVectors, vectors); // Each point in test_p has a cluster
+    
+    double** means = kmeans.getClusters();
+    
+    
     
     for(int i=0; i < K; i++){
         cout << means[i][0] << " "<< means[i][1] << " " <<endl;
     }
     
-    display_vectors(means, vectors, K , num_vectors);
+    cvDisplayVectors(means, vectors ,K , numVectors);
 
     return 0;
 }
 
-void display_vectors(double** means, Vector* vectors, int K, int numVectors){
-    cv::Mat img = cv::Mat(600, 600, CV_8UC3, cv::Scalar(255, 255, 255));
-    cv::Scalar* colors_clusters = new cv::Scalar[K];
-    
-    for(int i=0; i<K; i++)
-        colors_clusters[i] = cv::Scalar(((double)rand()/RAND_MAX)*192,
-                                        ((double)rand()/RAND_MAX)*192,
-                                        ((double)rand()/RAND_MAX)*192);
-    
-    for(int i=0 ; i<numVectors; i++) {
-        cv::Point pt = cv::Point(vectors[i].getVector(0), vectors[i].getVector(1));
-        cv::circle(img, pt, 3, colors_clusters[vectors[i].getClusterNum()] , 3);
-    }
-    
-    cv::Scalar mean_colors(0, 0, 0);
-    for(int i=0; i<K; i++) {
-        cv::Point pt = cv::Point(means[i][0], means[i][1]);
-        circle(img, pt, 4 , mean_colors, 4);
-    }
-    
-    cv::imshow("output clusters", img);
 
-    // Block until the user presses a key
-    cv::waitKey(0);
-}
