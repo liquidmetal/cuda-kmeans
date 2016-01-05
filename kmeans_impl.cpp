@@ -7,25 +7,31 @@
 #include <random>
 #include <cmath>
 #include <iomanip>
+#include <assert.h>
+#include <float.h>
+
+
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/core/core.hpp>
+
 
 using namespace cv;
 using namespace std;
 
 // Prototypes
-class Vector;       //TODO change (count%2==0)
+class Vector;       //TODO CUDA
 class NDimsKmeans;
 void cvDisplayVectors(double** means, Vector* vectors, int K ,int numVectors);
 Vector* build_uniform_random_point(int dims);
 Vector* generate_clusters(int dims, int K, int vector_count);
 void cvDisplayVectors(double** means, Vector* vectors, int K, int numVectors);
 
+
 class Vector{
 private:
     double *vectors = NULL;          // Actual point data
-    int cluster_num = INT16_MAX;     // The cluster this point belongs to
+    int cluster_num = -1;     // The cluster this point belongs to
     int dims = 0;                    // Number of dimensions
     
 public:
@@ -88,24 +94,19 @@ public:
     
 public:
     double** getClusters() {
-        int count = 0;
+        bool isFirst = true;
         Vector *mean_v = new Vector[K];
-        
-        bool isFinished = false;
         
         double **means = new double *[K];
         for (int i = 0; i < K; i++) { means[i] = new double[dims]; }
         
-        double **means_prev = new double *[K];
-        for (int i = 0; i < K; i++) means_prev[i] = new double[dims];
-        
         mean_v = randomKMeansPlusPlusInit();
         
-        cvDisplayInitial(mean_v, vectors);
         
-        
-        while (!isFinished) {
-            
+        while (true) {
+            for(int i=0; i < K; i++){
+                cout << means[i][0] << " "<< means[i][1] << " " <<endl;
+            }
             
             for (int i = 0; i < numVectors; i++) {   //Go through All points
                 
@@ -113,7 +114,7 @@ public:
                 double *test_p = vectors[i].getVectors();
                 
                 int min_index = 0;
-                double min = INT16_MAX;
+                double min = DBL_MAX;
                 
                 for (int j = 0; j < K; j++) {
                     
@@ -128,64 +129,44 @@ public:
                 }
                 vectors[i].setClusterNum(min_index);
             }
+    
+                
+            for(int i=0; i<K; i++)
+               for(int j=0; j<dims; j++)
+                    means[i][j] = 0;
+                
             
-            if(count%2==0){
-                
-                for(int i=0; i<K; i++)
-                    for(int j=0; j<dims; j++)
-                        means_prev[i][j] = 0;
-                
-                double *d = new double[K];
-                
+            double *d = new double[K];
+            for(int i=0; i<K; i++) d[i] = 0;
+            
+            for (int j = 0; j < dims; j++) {
                 for (int l = 0; l < numVectors; l++) {
-                    for (int j = 0; j < dims; j++){
-                        means_prev[vectors[l].getClusterNum()][j] += vectors[l].getVector(j);
-                        if (j == 0)d[vectors[l].getClusterNum()]++;
-                    }
+                    means[vectors[l].getClusterNum()][j] += vectors[l].getVector(j);
+                    if (j == 0) d[vectors[l].getClusterNum()]++;
                 }
-                
-            
-                for (int l = 0; l < K; l++)
-                    for (int k = 0; k < dims; k++) {
-                        means_prev[l][k] /= d[l];
-                        mean_v[l].setVector(k, means_prev[l][k]);
-                        
-                    }
-                
-                
-            }else{
-                
-                for(int i=0; i<K; i++)
-                    for(int j=0; j<dims; j++)
-                        means[i][j] = 0;
-                
-                
-                double *d = new double[K];
-                for (int j = 0; j < dims; j++) {
-                    for (int l = 0; l < numVectors; l++) {
-                        means[vectors[l].getClusterNum()][j] += vectors[l].getVector(j);
-                        if (j == 0) d[vectors[l].getClusterNum()]++;
-                    }
-                }
-                
-                for (int l = 0; l < K; l++)
-                    for (int k = 0; k < dims; k++) {
-                        means[l][k] /= d[l];
-                        mean_v[l].setVector(k, means[l][k]);
-                    }
-                
-                int c = 0;
-                for (int i = 0; i < K; i++)
-                    for (int k = 0; k < dims; k++) {
-                        if (means[i][k] == means_prev[i][k]) { c++; }
-                    }
-                if (c == K * dims) break ;
             }
+
+            for (int l = 0; l < K; l++)
+                for (int k = 0; k < dims; k++) {
+                    means[l][k] /= d[l];
+                }
             
-            count++;
+            if(!isFirst){
+                              int c = 0;
+              for (int i = 0; i < K; i++)
+                  for (int k = 0; k < dims; k++) {
+                      if (means[i][k] == mean_v[i].getVector(k)) { c++; }
+              }
+              if (c == K * dims) break ;
+            }
+            isFirst = false;
+            
+            for (int l = 0; l < K; l++)
+               for (int k = 0; k < dims; k++) {
+                    mean_v[l].setVector(k, means[l][k]);
+               }
         }
-        
-        
+
         return means;
         
     }
@@ -196,7 +177,8 @@ private:
         Vector* v = new Vector[K];
         
         int r = rand()%(numVectors-1);
-        v[0] = vectors[r];
+        v[0].setDim(dims);
+        v[0].setVectors(vectors[r].getVectors());
         
         for(int k=1; k<K; k++){
             double* prob = new double[numVectors];
@@ -233,8 +215,6 @@ private:
                 memcpy(&cumprob[i], &c_prob, sizeof(double));
             }
             
-            cout << "trying" << cumprob[0] << endl;
-
             double rand_prob = rand()/((double)RAND_MAX);
             int index = 0;
             
@@ -244,7 +224,9 @@ private:
                     break;
                 }
             }
-            v[k] = vectors[index];
+
+            v[k].setDim(dims);
+            v[k].setVectors(vectors[index].getVectors());
         }
         
         for(int i=0; i< K; i++){
@@ -253,36 +235,13 @@ private:
         
         return v;
     }
-    
-public:
-    void cvDisplayInitial(Vector* random, Vector* vectors){
-        namedWindow("B", WINDOW_FULLSCREEN);
-        Mat img = imread("/Users/BSathvik/Downloads/White_Canvas.jpg", CV_LOAD_IMAGE_COLOR);
-        
-        Scalar mean_colors(0,0,0);
-        
-        Scalar *colors_clusters = new Scalar[K];
-        
-        for(int i=0; i<K; i++)
-            colors_clusters[i] = *new Scalar(rand()%255,rand()%255,rand()%255);
-        
-        for(int i=0 ; i<numVectors; i++)
-           // circle(img, *new Point(vectors[i].getVector(0),vectors[i].getVector(1)), 3, colors_clusters[vectors[i].getClusterNum()] , 3);
-        
-        for(int i=0; i<K; i++)
-            circle(img, *new Point(random[i].getVector(0), random[i].getVector(1)), 4 , mean_colors,4);
-        
-        imshow("B", img);
-        
-        cvWaitKey(0);
-    }
 };
 
 // Returns a uniformly random vector of size dims
 Vector* build_uniform_random_point(int dims) {
     Vector* vec = new Vector();
     vec->setDim(dims);
-    
+
     for(int i=0;i<dims;i++)
         vec->setVector(i, rand() % 500); //changed it from 100 to 600.. because clusters seemed too close to each other
     
@@ -301,7 +260,7 @@ Vector* generate_clusters(int dims, int K, int vector_count) {
     const unsigned int num_per_cluster = vector_count / K;
     unsigned int count = 0;
     unsigned int cluster_count = 0;
-    
+    srand(1222);
     // The mean around which a cluster is generated
     float std_dev = 20.0f;
     Vector* mean = build_uniform_random_point(dims);
@@ -360,20 +319,22 @@ int main() {
     int numVectors = 150;    // A total of 150 points
     
     Vector* vectors = generate_clusters(dims, K, numVectors);
+    //Vector* vectors = new Vector[numVectors];
     
     for(int i=0; i<numVectors; i++){
-        cout << vectors[i].getVector(0) << "     " << vectors[i].getVector(1) << endl;
+        //vectors[i].setDim(dims);
+        //cout << vectors[i].getVector(0) << "     " << vectors[i].getVector(1) << endl;
     }
     
     // I got these points online i put in only 5 because it would be easier to track where my algorithm was going wrong
     // and the correct means for the points was A(0.7,1) and B(2.5 , 4.5)
-
-    //  points[0].setPoints(new double[2]{1,1});
-    //  points[1].setPoints(new double[2]{1,0});
-    //  points[2].setPoints(new double[2]{4,4});
-    //  points[3].setPoints(new double[2]{2,4});
-    //  points[4].setPoints(new double[2]{3,5});
-
+    /*
+      vectors[0].setVectors(new double[2]{1,1});
+      vectors[1].setVectors(new double[2]{1,0});
+      vectors[2].setVectors(new double[2]{0,2});
+      vectors[3].setVectors(new double[2]{2,4});
+      vectors[4].setVectors(new double[2]{3,5});
+    */
     printf("Got here\n");
 
     NDimKMeans kmeans(dims, K, numVectors, vectors); // Each point in test_p has a cluster
@@ -387,8 +348,6 @@ int main() {
     }
     
     cvDisplayVectors(means, vectors ,K , numVectors);
-
+    //getchar();
     return 0;
 }
-
-
